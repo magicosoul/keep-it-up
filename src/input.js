@@ -52,6 +52,9 @@ export class InputManager {
       'KeyW',
       'KeyS',
       'Space',
+      'Digit1',
+      'Digit2',
+      'Digit3',
     ].includes(code);
   }
 }

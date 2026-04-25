@@ -40,6 +40,29 @@ p {
   color: #cbd5e1;
 }
 
+.mode-select {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.mode-btn {
+  border: 1px solid #334155;
+  border-radius: 999px;
+  background: rgba(8, 13, 24, 0.82);
+  color: #e2e8f0;
+  padding: 8px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mode-btn.active {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.2);
+  color: #ffe6b6;
+}
+
 .hud {
   display: flex;
   gap: 8px;

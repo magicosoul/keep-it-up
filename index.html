@@ -10,9 +10,16 @@
       <header class="topbar">
         <div>
           <h1>KEEP IT UP!</h1>
-          <p>Phase 1: foot juggling feel test</p>
+          <p>Mode Select + Phase 1 Foot Juggling</p>
+          <div class="mode-select" role="group" aria-label="game mode select">
+            <button type="button" class="mode-btn" data-mode="attack90">90s</button>
+            <button type="button" class="mode-btn" data-mode="attack120">120s</button>
+            <button type="button" class="mode-btn" data-mode="hardcore">Hardcore</button>
+          </div>
         </div>
         <div class="hud">
+          <div>Mode <strong id="mode">90s</strong></div>
+          <div>Time <strong id="timer">90.0</strong></div>
           <div>Score <strong id="score">0</strong></div>
           <div>Combo <strong id="combo">0</strong></div>
           <div>Status <strong id="status">Ready</strong></div>
@@ -24,6 +31,7 @@
       <section class="controls-help">
         <p>Move: Arrow Left / Arrow Right</p>
         <p>Kick: A = left foot, D = right foot</p>
+        <p>Mode: 1 = 90s, 2 = 120s, 3 = Hardcore</p>
         <p>Start / Restart: Space</p>
       </section>
     </div>

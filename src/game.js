@@ -10,16 +10,47 @@ export class Game {
     this.scoreEl = document.getElementById('score');
     this.comboEl = document.getElementById('combo');
     this.statusEl = document.getElementById('status');
+    this.modeEl = document.getElementById('mode');
+    this.timerEl = document.getElementById('timer');
+    this.modeButtons = [...document.querySelectorAll('[data-mode]')];
 
     this.lastTime = 0;
+    this.selectedMode = 'attack90';
+    this.remainingSeconds = CONFIG.modes[this.selectedMode].durationSeconds;
+    this.bindModeButtons();
     this.reset();
+  }
+
+  bindModeButtons() {
+    for (const button of this.modeButtons) {
+      button.addEventListener('click', () => {
+        const modeId = button.dataset.mode;
+        this.setMode(modeId);
+      });
+    }
+  }
+
+  setMode(modeId) {
+    if (!CONFIG.modes[modeId]) {
+      return;
+    }
+
+    this.selectedMode = modeId;
+    this.remainingSeconds = CONFIG.modes[modeId].durationSeconds;
+
+    if (this.state !== 'playing') {
+      this.message = `SPACE TO START / ${CONFIG.modes[modeId].label}`;
+    }
+
+    this.updateHud(this.state === 'playing' ? 'Playing' : 'Ready');
   }
 
   reset() {
     this.state = 'ready';
     this.score = 0;
     this.combo = 0;
-    this.message = 'SPACE TO START';
+    this.remainingSeconds = CONFIG.modes[this.selectedMode].durationSeconds;
+    this.message = `SPACE TO START / ${CONFIG.modes[this.selectedMode].label}`;
 
     this.player = {
       x: CONFIG.player.startX,
@@ -46,6 +77,7 @@ export class Game {
   start() {
     this.state = 'playing';
     this.message = '';
+    this.remainingSeconds = CONFIG.modes[this.selectedMode].durationSeconds;
     this.ball.x = this.player.x;
     this.ball.y = CONFIG.groundY - 145;
     this.ball.vx = 70;
@@ -54,6 +86,8 @@ export class Game {
   }
 
   update(deltaSeconds) {
+    this.handleModeSelectionInput();
+
     if (this.input.consumePress('Space')) {
       if (this.state !== 'playing') {
         this.start();
@@ -61,6 +95,10 @@ export class Game {
     }
 
     if (this.state === 'playing') {
+      this.updateTimer(deltaSeconds);
+      if (this.state !== 'playing') {
+        return;
+      }
       this.updatePlayer(deltaSeconds);
       this.updateBall(deltaSeconds);
       this.handleKickInput();
@@ -69,6 +107,35 @@ export class Game {
 
     if (this.player.kickFlash > 0) {
       this.player.kickFlash -= deltaSeconds;
+    }
+  }
+
+  handleModeSelectionInput() {
+    if (this.state === 'playing') {
+      return;
+    }
+
+    if (this.input.consumePress('Digit1')) {
+      this.setMode('attack90');
+    }
+    if (this.input.consumePress('Digit2')) {
+      this.setMode('attack120');
+    }
+    if (this.input.consumePress('Digit3')) {
+      this.setMode('hardcore');
+    }
+  }
+
+  updateTimer(deltaSeconds) {
+    if (this.remainingSeconds === null) {
+      return;
+    }
+
+    this.remainingSeconds = Math.max(0, this.remainingSeconds - deltaSeconds);
+    if (this.remainingSeconds <= 0) {
+      this.state = 'gameover';
+      this.message = `TIME UP / SCORE ${this.score}`;
+      this.updateHud('Time Up');
     }
   }
 
@@ -173,6 +240,13 @@ export class Game {
     this.scoreEl.textContent = String(this.score);
     this.comboEl.textContent = String(this.combo);
     this.statusEl.textContent = status;
+    this.modeEl.textContent = CONFIG.modes[this.selectedMode].label;
+    this.timerEl.textContent = this.remainingSeconds === null ? '∞' : this.remainingSeconds.toFixed(1);
+
+    for (const button of this.modeButtons) {
+      const isActive = button.dataset.mode === this.selectedMode;
+      button.classList.toggle('active', isActive);
+    }
   }
 
   draw() {
@@ -320,6 +394,7 @@ export class Game {
     ctx.fillText(this.message, CONFIG.canvasWidth / 2, CONFIG.canvasHeight / 2);
     ctx.font = '700 22px system-ui';
     ctx.fillText('A / D to kick, Arrow keys to move', CONFIG.canvasWidth / 2, CONFIG.canvasHeight / 2 + 48);
+    ctx.fillText('Mode: 1=90s 2=120s 3=Hardcore', CONFIG.canvasWidth / 2, CONFIG.canvasHeight / 2 + 84);
     ctx.restore();
   }
 

@@ -28,5 +28,19 @@ export const CONFIG = {
     foot: 1,
     perfectBonus: 2,
     comboEvery: 10,
-  }
+  },
+  modes: {
+    attack90: {
+      label: '90s Attack',
+      durationSeconds: 90,
+    },
+    attack120: {
+      label: '120s Attack',
+      durationSeconds: 120,
+    },
+    hardcore: {
+      label: 'Hardcore',
+      durationSeconds: null,
+    },
+  },
 };
