@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KEEP IT UP!</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div>
+          <h1>KEEP IT UP!</h1>
+          <p>Phase 1: foot juggling feel test</p>
+        </div>
+        <div class="hud">
+          <div>Score <strong id="score">0</strong></div>
+          <div>Combo <strong id="combo">0</strong></div>
+          <div>Status <strong id="status">Ready</strong></div>
+        </div>
+      </header>
+
+      <canvas id="game" width="960" height="540" aria-label="KEEP IT UP game canvas"></canvas>
+
+      <section class="controls-help">
+        <p>Move: Arrow Left / Arrow Right</p>
+        <p>Kick: A = left foot, D = right foot</p>
+        <p>Start / Restart: Space</p>
+      </section>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
