@@ -96,6 +96,9 @@ export class Game {
 
     if (this.state === 'playing') {
       this.updateTimer(deltaSeconds);
+      if (this.state !== 'playing') {
+        return;
+      }
       this.updatePlayer(deltaSeconds);
       this.updateBall(deltaSeconds);
       this.handleKickInput();
