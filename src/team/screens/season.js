@@ -1,6 +1,7 @@
-import { TEAM_CONFIG, POSITION_LABEL } from '../config.js';
+import { TEAM_CONFIG, POSITION_LABEL, FORMATIONS } from '../config.js';
 import { render, on, escapeHtml, ovrClass } from '../ui.js';
 import { squadSummary } from '../squad.js';
+import { matchupPreview, matchupLabel } from '../tactics.js';
 
 const EVENT_LABEL = {
   breakout: 'ブレイク',
@@ -54,6 +55,108 @@ function squadRows(state) {
     }).join('');
 }
 
+function signed(value) {
+  return `${value > 0 ? '+' : ''}${value}%`;
+}
+
+function termRow(term) {
+  const attack = Math.round(term.attack * 100);
+  const control = Math.round(term.control * 100);
+  const total = attack + control;
+
+  return `
+    <li class="term ${total > 0 ? 'is-plus' : total < 0 ? 'is-minus' : ''}">
+      <span class="term-label">${escapeHtml(term.label)}</span>
+      <span class="term-detail">${escapeHtml(term.detail)}</span>
+      <span class="term-value">${attack !== 0 ? `攻 ${signed(attack)}` : ''}${attack !== 0 && control !== 0 ? ' / ' : ''}${control !== 0 ? `主 ${signed(control)}` : ''}${total === 0 ? '—' : ''}</span>
+    </li>
+  `;
+}
+
+function matchupMatrix(currentKey, opponentKey) {
+  const keys = Object.keys(FORMATIONS);
+
+  return `
+    <table class="matrix">
+      <thead>
+        <tr><th>自分＼相手</th>${keys.map((key) => `<th class="${key === opponentKey ? 'is-col' : ''}">${key}</th>`).join('')}</tr>
+      </thead>
+      <tbody>
+        ${keys.map((mine) => `
+          <tr class="${mine === currentKey ? 'is-row' : ''}">
+            <th>${mine}</th>
+            ${keys.map((opp) => {
+              const score = matchupPreview(mine, opp).score;
+              const tone = matchupLabel(score).tone;
+              return `<td class="tone-${tone} ${opp === opponentKey ? 'is-col' : ''}">${score > 0 ? '+' : ''}${score}</td>`;
+            }).join('')}
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function nextMatchPanel(ctx, fixture) {
+  if (!fixture) {
+    return '';
+  }
+
+  const state = ctx.state;
+  const oppKey = fixture.opponent.formationKey;
+  const preview = matchupPreview(state.formationKey, oppKey);
+  const label = matchupLabel(preview.score);
+
+  return `
+    <div class="panel next-match">
+      <h3>
+        次の試合
+        <span class="next-line">第${fixture.round}節 ${fixture.home ? 'ホーム' : 'アウェー'} vs ${escapeHtml(fixture.opponent.name)}</span>
+      </h3>
+
+      <div class="next-grid">
+        <div class="next-opponent">
+          <p class="eyebrow">相手のフォーメーション</p>
+          <p class="opp-formation">${escapeHtml(oppKey)}</p>
+          <p class="note">${escapeHtml(FORMATIONS[oppKey].style)}</p>
+        </div>
+
+        <div class="next-verdict">
+          <span class="verdict tone-${label.tone}">${label.text}</span>
+          <div class="verdict-stats">
+            <span>攻撃 <strong>${signed(preview.attackPercent)}</strong></span>
+            <span>守備 <strong>${signed(preview.defensePercent)}</strong></span>
+            <span>主導権 <strong>${signed(preview.controlPercent)}</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <p class="eyebrow">フォーメーションを変えて噛み合わせを取りにいく</p>
+      <div class="formation-row">
+        ${Object.keys(FORMATIONS).map((key) => {
+          const score = matchupPreview(key, oppKey).score;
+          const tone = matchupLabel(score).tone;
+          return `
+            <button class="btn btn-chip ${key === state.formationKey ? 'is-active' : ''}" data-season-formation="${key}">
+              ${key}<small class="tone-${tone}">${score > 0 ? '+' : ''}${score}</small>
+            </button>
+          `;
+        }).join('')}
+      </div>
+
+      ${preview.terms.every((term) => term.attack === 0 && term.control === 0)
+        ? '<p class="note">同じフォーメーションどうしなので、噛み合わせの差はありません。選手の質の勝負になります。</p>'
+        : `<ul class="terms">${preview.terms.map(termRow).join('')}</ul>`}
+
+      <details class="matrix-box">
+        <summary>相性表を見る</summary>
+        <div class="table-scroll">${matchupMatrix(state.formationKey, oppKey)}</div>
+        <p class="note">数字は「形の噛み合わせだけ」で攻守が何%変わるか。選手の質は別。</p>
+      </details>
+    </div>
+  `;
+}
+
 export function showSeason(ctx) {
   const state = ctx.state;
   const season = state.season;
@@ -61,6 +164,7 @@ export function showSeason(ctx) {
   const recent = season.log.slice(-6).reverse();
   const events = season.events.slice(-8).reverse();
   const mine = season.myRow();
+  const fixture = season.nextFixture();
 
   render(`
     <section class="screen screen-season">
@@ -76,6 +180,8 @@ export function showSeason(ctx) {
           <div class="counter"><span>出場可能</span><strong>${season.availableCount()} / ${state.squad.length}</strong></div>
         </div>
       </header>
+
+      ${nextMatchPanel(ctx, fixture)}
 
       <div class="button-row season-actions">
         <button id="play-one" class="btn btn-primary" ${season.finished ? 'disabled' : ''}>1試合進める</button>
@@ -93,7 +199,10 @@ export function showSeason(ctx) {
                 <span class="round">第${entry.round}節</span>
                 <span class="opp">${entry.home ? 'H' : 'A'} vs ${escapeHtml(entry.opponent)}</span>
                 <span class="score">${entry.scored} - ${entry.conceded}</span>
-                <span class="scorers">${entry.scorers.map((name) => escapeHtml(name)).join(', ')}</span>
+                <span class="scorers">
+                  <span class="formation-pair">${escapeHtml(entry.myFormation)} vs ${escapeHtml(entry.opponentFormation)}</span>
+                  ${entry.scorers.map((name) => escapeHtml(name)).join(', ')}
+                </span>
               </li>
             `).join('') || '<li class="note">まだ試合をしていません</li>'}
           </ul>
@@ -128,6 +237,10 @@ export function showSeason(ctx) {
       </div>
     </section>
   `);
+
+  on('[data-season-formation]', 'click', (event) => {
+    ctx.actions.setSeasonFormation(event.currentTarget.dataset.seasonFormation);
+  });
 
   on('#play-one', 'click', () => ctx.actions.playMatches(1));
   on('#play-five', 'click', () => ctx.actions.playMatches(5));

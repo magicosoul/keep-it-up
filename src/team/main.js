@@ -107,6 +107,17 @@ ctx.actions = {
     draw();
   },
 
+  setSeasonFormation(key) {
+    if (key === state.formationKey) {
+      return;
+    }
+
+    state.formationKey = key;
+    state.lineup = autoAssign(state.squad, key);
+    state.season.setFormation(key, state.lineup);
+    draw();
+  },
+
   setCaptain(playerId) {
     state.captainId = playerId;
     draw();

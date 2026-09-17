@@ -1,14 +1,19 @@
-import { TEAM_CONFIG } from './config.js';
+import { TEAM_CONFIG, FORMATIONS } from './config.js';
 import { CLUB_PREFIX, CLUB_SUFFIX, SURNAMES, GIVEN_NAMES, FOREIGN_NAMES } from './names.js';
 import { pick, range, intRange, poisson } from './rng.js';
 import { squadSummary, availableFor } from './squad.js';
+import { matchupModifiers, controlEdge, applyControlEdge, expectedGoals } from './tactics.js';
 
 export const AI_SCALE = {
-  attackBase: 58,
+  attackBase: 55,
   attackRange: 20,
-  defenseBase: 64,
+  defenseBase: 61,
   defenseRange: 18,
+  controlBase: 61,
+  controlRange: 19,
 };
+
+const FORMATION_KEYS = Object.keys(FORMATIONS);
 
 const SCORER_SHARES = [0.28, 0.18, 0.11];
 
@@ -69,6 +74,8 @@ function buildClubs(rng, clubCount, myClubName, takenNames = []) {
   for (let i = 1; i < clubCount; i += 1) {
     const name = `${prefixes[(i - 1) % prefixes.length]}${pick(rng, CLUB_SUFFIX)}`;
     const quality = rng();
+    const formationKey = pick(rng, FORMATION_KEYS);
+    const bias = FORMATIONS[formationKey].bias;
     const scorerName = () => {
       for (let attempt = 0; attempt < 30; attempt += 1) {
         const candidate = rng() < 0.25
@@ -88,8 +95,10 @@ function buildClubs(rng, clubCount, myClubName, takenNames = []) {
       name,
       mine: false,
       quality,
-      attack: clamp(AI_SCALE.attackBase + quality * AI_SCALE.attackRange + range(rng, -2.5, 2.5), 40, 99),
-      defense: clamp(AI_SCALE.defenseBase + quality * AI_SCALE.defenseRange + range(rng, -2.5, 2.5), 40, 99),
+      formationKey,
+      attack: clamp((AI_SCALE.attackBase + quality * AI_SCALE.attackRange + range(rng, -2.5, 2.5)) * bias.attack, 40, 99),
+      defense: clamp((AI_SCALE.defenseBase + quality * AI_SCALE.defenseRange + range(rng, -2.5, 2.5)) * bias.defense, 40, 99),
+      control: clamp((AI_SCALE.controlBase + quality * AI_SCALE.controlRange + range(rng, -2.5, 2.5)) * bias.control, 40, 99),
       scorers: SCORER_SHARES.map((share) => ({ name: scorerName(), club: name, goals: 0, share })),
     });
   }
@@ -99,11 +108,6 @@ function buildClubs(rng, clubCount, myClubName, takenNames = []) {
 
 function emptyRow(index) {
   return { club: index, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 };
-}
-
-function expectedGoals(attack, opponentDefense, homeAdvantage) {
-  const ratio = attack / Math.max(opponentDefense, 20);
-  return clamp(1.45 * Math.pow(ratio, 1.9) * homeAdvantage, 0.12, 4.8);
 }
 
 export class Season {
@@ -127,21 +131,43 @@ export class Season {
 
   aiRatings(club) {
     const noise = () => range(this.rng, -4, 4);
+
     return {
       attack: clamp(club.attack + noise(), 40, 99),
       defense: clamp(club.defense + noise(), 40, 99),
+      control: clamp(club.control + noise(), 40, 99),
+      formationKey: club.formationKey,
     };
   }
 
   myRatings() {
     const summary = squadSummary(this.squad, this.formationKey, this.lineup, this.captainId);
-    const controlShift = 1 + (summary.ratings.control - 70) / 600;
 
     return {
-      attack: clamp(summary.ratings.attack * controlShift, 30, 99),
-      defense: clamp(summary.ratings.defense * controlShift, 30, 99),
+      attack: clamp(summary.ratings.attack, 30, 99),
+      defense: clamp(summary.ratings.defense, 30, 99),
+      control: clamp(summary.ratings.control, 30, 99),
+      formationKey: this.formationKey,
       resolved: summary.resolved,
       power: summary.power,
+    };
+  }
+
+  /**
+   * フォーメーションの噛み合わせを両チーム分求めてから、
+   * 中盤の主導権の取り合いを解いて、最終的な攻撃力・守備力にする。
+   */
+  resolveTactics(home, away) {
+    const homeMods = matchupModifiers(home.formationKey, away.formationKey);
+    const awayMods = matchupModifiers(away.formationKey, home.formationKey);
+    const edge = controlEdge(home.control * homeMods.control, away.control * awayMods.control);
+
+    return {
+      home: applyControlEdge({ attack: home.attack * homeMods.attack, defense: home.defense }, edge),
+      away: applyControlEdge({ attack: away.attack * awayMods.attack, defense: away.defense }, -edge),
+      edge,
+      homeMods,
+      awayMods,
     };
   }
 
@@ -178,8 +204,9 @@ export class Season {
         awayRating = this.aiRatings(awayClub);
       }
 
-      const homeGoals = poisson(this.rng, expectedGoals(homeRating.attack, awayRating.defense, 1.13));
-      const awayGoals = poisson(this.rng, expectedGoals(awayRating.attack, homeRating.defense, 0.93));
+      const tactics = this.resolveTactics(homeRating, awayRating);
+      const homeGoals = poisson(this.rng, expectedGoals(tactics.home.attack, tactics.away.defense, 1.13));
+      const awayGoals = poisson(this.rng, expectedGoals(tactics.away.attack, tactics.home.defense, 0.93));
 
       this.applyResult(homeIndex, awayIndex, homeGoals, awayGoals);
 
@@ -198,6 +225,9 @@ export class Season {
       myReport = {
         round,
         opponent: opponent.name,
+        opponentFormation: opponent.formationKey,
+        myFormation: this.formationKey,
+        controlEdge: home ? tactics.edge : -tactics.edge,
         home,
         scored,
         conceded,
@@ -210,6 +240,30 @@ export class Season {
 
     this.matchday += 1;
     return myReport;
+  }
+
+  setFormation(formationKey, lineup) {
+    this.formationKey = formationKey;
+    this.lineup = lineup;
+  }
+
+  nextFixture() {
+    if (this.finished) {
+      return null;
+    }
+
+    const pair = this.fixtures[this.matchday].find(([homeIndex, awayIndex]) => (
+      this.clubs[homeIndex].mine || this.clubs[awayIndex].mine
+    ));
+
+    if (!pair) {
+      return null;
+    }
+
+    const home = this.clubs[pair[0]].mine;
+    const opponent = this.clubs[home ? pair[1] : pair[0]];
+
+    return { round: this.matchday + 1, home, opponent };
   }
 
   creditScorers(club, goals) {

@@ -68,8 +68,9 @@ export function showSquad(ctx) {
         ${Object.keys(FORMATIONS).map((key) => `
           <button class="btn btn-chip ${key === state.formationKey ? 'is-active' : ''}" data-formation="${key}">${key}</button>
         `).join('')}
-        <span class="note">${escapeHtml(formation.note)}</span>
       </div>
+      <p class="note formation-note">${escapeHtml(formation.note)} ／ ${escapeHtml(formation.style)}</p>
+      <p class="note">シーズン中は相手の形を見てから組み替えられます。本職外で使うと能力が下がるので、噛み合わせと選手の質のどちらを取るかの判断になります。</p>
 
       <div class="squad-body">
         <div class="pitch">
