@@ -63,11 +63,29 @@ Do not try to finish the entire game in one task. Work in small steps:
 5. Add pixel art assets.
 6. Tune scoring and difficulty.
 
+## サッカーチームメーカー (`/team/`)
+
+このリポジトリにはもう一つ、ブラウザで遊べるチーム構築ゲームが入っています。
+
+ランダムに流れてくる選手を「取る」か「見送る」かだけで18人集め、
+フォーメーションを組んで38試合のシーズンを戦います。1プレイ5〜15分。
+
+- ドラフト: フィールドプレーヤー16人（見送り9回まで）→ GK 2人（見送り3回まで）
+- 編成: 4-4-2 / 4-3-3 / 3-5-2 / 4-2-3-1、本職外はコンバート減点
+- シーズン: 20クラブの38節。疲労・ケガ・ブレイク・不調あり
+- 同じシードなら同じ選手が同じ順番で流れます
+
+`npm run dev` のあと `/team/` を開いてください。詳しい仕様は `TEAM_SPEC.md`。
+
 ## Project structure
 
 ```text
 keep-it-up/
 ├─ index.html
+├─ vite.config.js
+├─ TEAM_SPEC.md
+├─ team/
+│  └─ index.html
 ├─ package.json
 ├─ README.md
 ├─ CODEX.md
@@ -78,7 +96,24 @@ keep-it-up/
 │  ├─ input.js
 │  ├─ physics.js
 │  ├─ tricks.js
-│  └─ config.js
+│  ├─ config.js
+│  └─ team/
+│     ├─ main.js
+│     ├─ config.js
+│     ├─ rng.js
+│     ├─ names.js
+│     ├─ players.js
+│     ├─ draft.js
+│     ├─ squad.js
+│     ├─ season.js
+│     ├─ ui.js
+│     └─ screens/
+│        ├─ title.js
+│        ├─ draft.js
+│        ├─ squad.js
+│        ├─ season.js
+│        └─ result.js
 └─ styles/
-   └─ style.css
+   ├─ style.css
+   └─ team.css
 ```
