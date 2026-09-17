@@ -1,5 +1,6 @@
 import { FORMATIONS, POSITION_LABEL } from '../config.js';
-import { render, on, escapeHtml, ovrClass, rosterRow, positionCounts, skillChips } from '../ui.js';
+import { render, on, escapeHtml, rosterRow, positionCounts, skillDots, shortName } from '../ui.js';
+import { rankOf } from '../players.js';
 import { squadSummary, effectiveOvr, assignmentScore, countByPosition, mismatchPenalty } from '../squad.js';
 
 function slotOptions(squad, selectedId, slotPosition) {
@@ -23,19 +24,35 @@ function slotCard(state, entry) {
 
   const eff = effectiveOvr(player, entry.slotPosition);
   const penalty = mismatchPenalty(player.position, entry.slotPosition, player);
+  const label = POSITION_LABEL[entry.slotPosition];
 
   return `
-    <div class="slot ${penalty > 0 ? 'is-mismatch' : ''}">
-      <span class="slot-pos pos-${entry.slotPosition}">${POSITION_LABEL[entry.slotPosition]}</span>
-      <select class="slot-select" data-slot="${entry.slotIndex}">
-        ${slotOptions(state.squad, entry.playerId, entry.slotPosition)}
-      </select>
-      <span class="slot-ovr ${ovrClass(eff)}">${eff}</span>
-      <span class="slot-skills">${skillChips(player, { limit: 2 })}</span>
-      ${penalty > 0 ? `<span class="slot-warn">コンバート -${penalty}</span>` : ''}
+    <div class="fm-slot ${penalty > 0 ? 'is-mismatch' : ''}">
+      <div class="fm-token pos-${entry.slotPosition}">
+        <span class="fm-token-pos">${label}</span>
+        <span class="fm-rating rank-${rankOf(eff)}">${eff}</span>
+        ${penalty > 0 ? `<span class="fm-convert" title="本職は${player.position}。慣れないポジションぶん能力が下がる">-${penalty}</span>` : ''}
+        <select class="fm-pick" data-slot="${entry.slotIndex}" aria-label="${label} の選手を選ぶ">
+          ${slotOptions(state.squad, entry.playerId, entry.slotPosition)}
+        </select>
+      </div>
+      <p class="fm-name" title="${escapeHtml(player.name)}">${escapeHtml(shortName(player.name))}</p>
+      ${skillDots(player)}
     </div>
   `;
 }
+
+const PITCH_MARKS = `
+  <div class="pitch-marks" aria-hidden="true">
+    <span class="mark-box mark-box-top"></span>
+    <span class="mark-goal mark-goal-top"></span>
+    <span class="mark-half"></span>
+    <span class="mark-circle"></span>
+    <span class="mark-spot"></span>
+    <span class="mark-box mark-box-bottom"></span>
+    <span class="mark-goal mark-goal-bottom"></span>
+  </div>
+`;
 
 export function showSquad(ctx) {
   const state = ctx.state;
@@ -74,10 +91,14 @@ export function showSquad(ctx) {
       <p class="note">シーズン中は相手の形を見てから組み替えられます。本職外で使うと能力が下がるので、噛み合わせと選手の質のどちらを取るかの判断になります。</p>
 
       <div class="squad-body">
-        <div class="pitch">
-          ${['FW', 'MF', 'DF', 'GK'].map((line) => `
-            <div class="pitch-line">${lines[line].map((entry) => slotCard(state, entry)).join('')}</div>
-          `).join('')}
+        <div>
+          <div class="pitch">
+            ${PITCH_MARKS}
+            ${['FW', 'MF', 'DF', 'GK'].map((line) => `
+              <div class="pitch-line">${lines[line].map((entry) => slotCard(state, entry)).join('')}</div>
+            `).join('')}
+          </div>
+          <p class="note pitch-hint">選手をタップすると入れ替えられます。赤い数字は本職外で使ったときの減点、下の点は特殊能力（<span class="dot dot-gold"></span>金 <span class="dot dot-blue"></span>青 <span class="dot dot-red"></span>赤）。</p>
         </div>
 
         <aside class="panel squad-side">
@@ -104,7 +125,7 @@ export function showSquad(ctx) {
     ctx.actions.setFormation(event.currentTarget.dataset.formation);
   });
 
-  on('.slot-select', 'change', (event) => {
+  on('.fm-pick', 'change', (event) => {
     ctx.actions.setSlot(Number(event.currentTarget.dataset.slot), event.currentTarget.value);
   });
 

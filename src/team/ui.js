@@ -69,6 +69,36 @@ export function skillChips(player, { limit = 0 } = {}) {
   }).join('') + (limit && keys.length > limit ? `<span class="skill skill-more">+${keys.length - limit}</span>` : '');
 }
 
+/** ピッチ上の狭い場所用。金特/青特/赤特を持っているかだけを点で示す。 */
+export function skillDots(player) {
+  const keys = player.skills ?? [];
+  const tones = new Set(keys.map((key) => SKILLS[key]?.tone).filter(Boolean));
+
+  if (!tones.size) {
+    return '';
+  }
+
+  const names = keys.map((key) => SKILLS[key]?.name).filter(Boolean).join('、');
+
+  return `<span class="dots" title="${escapeHtml(names)}">${['gold', 'blue', 'red']
+    .filter((tone) => tones.has(tone))
+    .map((tone) => `<span class="dot dot-${tone}"></span>`)
+    .join('')}</span>`;
+}
+
+/** ピッチ上は姓だけ出す。日本語名は「姓 名」、外国籍名は「名・姓」。 */
+export function shortName(name) {
+  if (name.includes(' ')) {
+    return name.split(' ')[0];
+  }
+
+  if (name.includes('・')) {
+    return name.split('・').pop();
+  }
+
+  return name;
+}
+
 export function playerCard(player, { big = false } = {}) {
   const order = STAT_ORDER[player.position];
   const labels = STAT_LABELS[player.position];
