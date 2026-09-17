@@ -2,6 +2,8 @@ import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  // GitHub Pages のようなサブディレクトリ配信でも動くように相対パスで出す
+  base: './',
   build: {
     rollupOptions: {
       input: {
