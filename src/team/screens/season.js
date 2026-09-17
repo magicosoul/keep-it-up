@@ -1,5 +1,5 @@
 import { TEAM_CONFIG, POSITION_LABEL, FORMATIONS } from '../config.js';
-import { render, on, escapeHtml, ovrClass } from '../ui.js';
+import { render, on, escapeHtml, ovrClass, skillChips, rankBadge } from '../ui.js';
 import { squadSummary } from '../squad.js';
 import { matchupPreview, matchupLabel } from '../tactics.js';
 
@@ -44,7 +44,8 @@ function squadRows(state) {
         <tr>
           <td><span class="pos pos-${player.position}">${POSITION_LABEL[player.position]}</span></td>
           <td class="club">${escapeHtml(player.name)}${player.id === state.captainId ? ' <span class="tag tag-cap">C</span>' : ''}</td>
-          <td><span class="ovr ${ovrClass(current)}">${current}</span>${player.growth ? `<small class="${player.growth > 0 ? 'up' : 'down'}">${player.growth > 0 ? '+' : ''}${player.growth}</small>` : ''}</td>
+          <td>${rankBadge(current)} <span class="ovr ${ovrClass(current)}">${current}</span>${player.growth ? `<small class="${player.growth > 0 ? 'up' : 'down'}">${player.growth > 0 ? '+' : ''}${player.growth}</small>` : ''}</td>
+          <td class="cell-skills">${skillChips(player, { limit: 3 })}</td>
           <td>${player.apps}</td>
           <td>${player.goals}</td>
           <td>${player.assists}</td>
@@ -230,7 +231,7 @@ export function showSeason(ctx) {
         <h3>選手成績</h3>
         <div class="table-scroll">
           <table class="data-table">
-            <thead><tr><th>POS</th><th>選手</th><th>総合</th><th>出</th><th>点</th><th>A</th><th>CS</th><th>状態</th></tr></thead>
+            <thead><tr><th>POS</th><th>選手</th><th>総合</th><th>特殊能力</th><th>出</th><th>点</th><th>A</th><th>CS</th><th>状態</th></tr></thead>
             <tbody>${squadRows(state)}</tbody>
           </table>
         </div>

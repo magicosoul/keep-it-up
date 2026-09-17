@@ -1,4 +1,4 @@
-import { render, on, escapeHtml, ovrClass } from '../ui.js';
+import { render, on, escapeHtml, ovrClass, skillChips, rankBadge } from '../ui.js';
 
 const GRADES = [
   { max: 1, grade: 'S+', title: '優勝' },
@@ -63,14 +63,15 @@ export function showResult(ctx) {
         <h3>最終ロスター</h3>
         <div class="table-scroll">
           <table class="data-table">
-            <thead><tr><th>POS</th><th>選手</th><th>開幕</th><th>最終</th><th>出</th><th>点</th><th>A</th></tr></thead>
+            <thead><tr><th>POS</th><th>選手</th><th>開幕</th><th>最終</th><th>特殊能力</th><th>出</th><th>点</th><th>A</th></tr></thead>
             <tbody>
               ${state.squad.slice().sort((a, b) => (b.ovr + b.growth) - (a.ovr + a.growth)).map((player) => `
                 <tr>
                   <td><span class="pos pos-${player.position}">${player.position}</span></td>
                   <td class="club">${escapeHtml(player.name)}</td>
                   <td>${player.ovr}</td>
-                  <td><span class="ovr ${ovrClass(player.ovr + player.growth)}">${player.ovr + player.growth}</span></td>
+                  <td>${rankBadge(player.ovr + player.growth)} <span class="ovr ${ovrClass(player.ovr + player.growth)}">${player.ovr + player.growth}</span></td>
+                  <td class="cell-skills">${skillChips(player, { limit: 3 })}</td>
                   <td>${player.apps}</td>
                   <td>${player.goals}</td>
                   <td>${player.assists}</td>

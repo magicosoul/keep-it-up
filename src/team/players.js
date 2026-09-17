@@ -1,5 +1,6 @@
-import { SURNAMES, GIVEN_NAMES, FOREIGN_NAMES, SCHOOLS, OVERSEAS_CLUBS, CLUB_PREFIX, CLUB_SUFFIX } from './names.js';
+import { CONFIRMED_NAMES, FOREIGN_NAMES, SCHOOLS, OVERSEAS_CLUBS, CLUB_PREFIX, CLUB_SUFFIX } from './names.js';
 import { pick, range, intRange, weighted } from './rng.js';
+import { rollSkills } from './skills.js';
 
 const TIERS = [
   { value: { min: 88, max: 95, label: 'ワールドクラス' }, weight: 2 },
@@ -15,11 +16,36 @@ const FIELD_POSITIONS = [
   { value: 'FW', weight: 22 },
 ];
 
+export const STAT_KEYS = ['shoot', 'pass', 'dribble', 'tackle', 'speed', 'physical'];
+
+/** 同じ6項目を、ポジションによって呼び方だけ変える。 */
+export const STAT_LABELS = {
+  GK: { shoot: 'セービング', pass: 'フィード', dribble: 'ハンドリング', tackle: '守備範囲', speed: '反応', physical: 'フィジカル' },
+  DF: { shoot: 'シュート', pass: 'パス', dribble: 'ドリブル', tackle: 'タックル', speed: 'スピード', physical: 'フィジカル' },
+  MF: { shoot: 'シュート', pass: 'パス', dribble: 'ドリブル', tackle: 'タックル', speed: 'スピード', physical: 'フィジカル' },
+  FW: { shoot: 'シュート', pass: 'パス', dribble: 'ドリブル', tackle: 'タックル', speed: 'スピード', physical: 'フィジカル' },
+};
+
+/** 表示順。そのポジションで大事なものから並べる。 */
+export const STAT_ORDER = {
+  GK: ['shoot', 'tackle', 'dribble', 'speed', 'physical', 'pass'],
+  DF: ['tackle', 'physical', 'speed', 'pass', 'dribble', 'shoot'],
+  MF: ['pass', 'dribble', 'tackle', 'speed', 'physical', 'shoot'],
+  FW: ['shoot', 'dribble', 'speed', 'physical', 'pass', 'tackle'],
+};
+
 const WEIGHTS = {
-  GK: { sav: 0.55, phy: 0.2, tec: 0.15, def: 0.1, att: 0 },
-  DF: { def: 0.48, phy: 0.22, tec: 0.18, att: 0.12, sav: 0 },
-  MF: { tec: 0.38, def: 0.22, att: 0.22, phy: 0.18, sav: 0 },
-  FW: { att: 0.52, tec: 0.24, phy: 0.16, def: 0.08, sav: 0 },
+  GK: { shoot: 0.4, tackle: 0.2, dribble: 0.15, speed: 0.12, physical: 0.08, pass: 0.05 },
+  DF: { tackle: 0.38, physical: 0.22, speed: 0.16, pass: 0.12, dribble: 0.07, shoot: 0.05 },
+  MF: { pass: 0.32, dribble: 0.22, tackle: 0.18, speed: 0.14, physical: 0.09, shoot: 0.05 },
+  FW: { shoot: 0.38, dribble: 0.22, speed: 0.2, physical: 0.12, pass: 0.06, tackle: 0.02 },
+};
+
+const SHAPE = {
+  GK: { shoot: 9, tackle: 3, dribble: -1, speed: -3, physical: 2, pass: -11 },
+  DF: { tackle: 9, physical: 7, speed: 0, pass: -3, dribble: -9, shoot: -15 },
+  MF: { pass: 8, dribble: 5, tackle: 0, speed: 0, physical: -2, shoot: -4 },
+  FW: { shoot: 10, dribble: 6, speed: 5, physical: 0, pass: -6, tackle: -16 },
 };
 
 const ORIGINS = [
@@ -36,66 +62,78 @@ export const ORIGIN_LABEL = {
   import: '外国籍',
 };
 
+const RANKS = [
+  { min: 90, letter: 'S' },
+  { min: 80, letter: 'A' },
+  { min: 70, letter: 'B' },
+  { min: 60, letter: 'C' },
+  { min: 50, letter: 'D' },
+  { min: 40, letter: 'E' },
+  { min: 30, letter: 'F' },
+  { min: -Infinity, letter: 'G' },
+];
+
+export function rankOf(value) {
+  return RANKS.find((rank) => value >= rank.min).letter;
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function spread(rng, base, bias) {
-  return Math.round(clamp(base + bias + range(rng, -7, 7), 30, 99));
+export function overallFor(position, stats) {
+  const weights = WEIGHTS[position];
+  return Math.round(STAT_KEYS.reduce((sum, key) => sum + stats[key] * weights[key], 0));
 }
 
 function buildStats(rng, position, base) {
-  if (position === 'GK') {
-    return {
-      sav: spread(rng, base, 6),
-      def: spread(rng, base, -2),
-      tec: spread(rng, base, -6),
-      phy: spread(rng, base, 2),
-      att: spread(rng, base, -26),
-    };
+  const shape = SHAPE[position];
+  const weights = WEIGHTS[position];
+  // ポジションごとの偏りで総合値がずれないよう、重み付き平均のぶんを引いておく
+  const offset = STAT_KEYS.reduce((sum, key) => sum + shape[key] * weights[key], 0);
+  const stats = {};
+
+  STAT_KEYS.forEach((key) => {
+    stats[key] = Math.round(clamp(base + shape[key] - offset + range(rng, -8, 8), 25, 99));
+  });
+
+  return stats;
+}
+
+function shuffled(rng, list) {
+  const out = list.slice();
+
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
   }
 
-  if (position === 'DF') {
-    return {
-      sav: 0,
-      def: spread(rng, base, 7),
-      tec: spread(rng, base, -4),
-      phy: spread(rng, base, 5),
-      att: spread(rng, base, -9),
-    };
-  }
+  return out;
+}
 
-  if (position === 'MF') {
-    return {
-      sav: 0,
-      def: spread(rng, base, 0),
-      tec: spread(rng, base, 7),
-      phy: spread(rng, base, -1),
-      att: spread(rng, base, 1),
-    };
-  }
+/**
+ * 1ゲームのあいだ同じ名前が二度出ないよう、シャッフルした山から配る。
+ * 山を使い切ったら引き直す（そのときだけ重複しうる）。
+ */
+export function createNameAllocator(rng) {
+  let japanese = shuffled(rng, CONFIRMED_NAMES);
+  let foreign = shuffled(rng, FOREIGN_NAMES);
 
-  return {
-    sav: 0,
-    def: spread(rng, base, -10),
-    tec: spread(rng, base, 3),
-    phy: spread(rng, base, 2),
-    att: spread(rng, base, 8),
+  return (origin) => {
+    if (origin === 'import') {
+      if (!foreign.length) {
+        foreign = shuffled(rng, FOREIGN_NAMES);
+      }
+
+      return foreign.pop();
+    }
+
+    if (!japanese.length) {
+      japanese = shuffled(rng, CONFIRMED_NAMES);
+    }
+
+    return japanese.pop();
   };
-}
-
-export function overallFor(position, stats) {
-  const w = WEIGHTS[position];
-  const raw = stats.att * w.att + stats.def * w.def + stats.tec * w.tec + stats.phy * w.phy + stats.sav * w.sav;
-  return Math.round(raw);
-}
-
-function buildName(rng, origin) {
-  if (origin === 'import') {
-    return pick(rng, FOREIGN_NAMES);
-  }
-
-  return `${pick(rng, SURNAMES)} ${pick(rng, GIVEN_NAMES)}`;
 }
 
 function buildTeamLabel(rng, origin) {
@@ -111,14 +149,10 @@ function buildTeamLabel(rng, origin) {
 }
 
 function buildAge(rng, origin) {
-  if (origin === 'youth') {
-    return intRange(rng, 17, 19);
-  }
-
-  return intRange(rng, 20, 35);
+  return origin === 'youth' ? intRange(rng, 17, 19) : intRange(rng, 20, 35);
 }
 
-export function createPlayer(rng, position, id) {
+export function createPlayer(rng, position, id, allocateName) {
   const origin = weighted(rng, ORIGINS);
   const tier = weighted(rng, TIERS);
   let base = range(rng, tier.min, tier.max);
@@ -138,7 +172,7 @@ export function createPlayer(rng, position, id) {
 
   return {
     id,
-    name: buildName(rng, origin),
+    name: allocateName ? allocateName(origin) : (origin === 'import' ? pick(rng, FOREIGN_NAMES) : pick(rng, CONFIRMED_NAMES)),
     position,
     origin,
     originLabel: ORIGIN_LABEL[origin],
@@ -148,19 +182,21 @@ export function createPlayer(rng, position, id) {
     ovr,
     potential: clamp(ovr + Math.max(youngBonus, 3), ovr, 99),
     tierLabel: tier.label,
+    skills: rollSkills(rng, position, ovr, age),
   };
 }
 
 export function buildPool(rng, fieldCount, keeperCount) {
+  const allocateName = createNameAllocator(rng);
   const field = [];
   const keepers = [];
 
   for (let i = 0; i < fieldCount; i += 1) {
-    field.push(createPlayer(rng, weighted(rng, FIELD_POSITIONS), `f${i}`));
+    field.push(createPlayer(rng, weighted(rng, FIELD_POSITIONS), `f${i}`, allocateName));
   }
 
   for (let i = 0; i < keeperCount; i += 1) {
-    keepers.push(createPlayer(rng, 'GK', `g${i}`));
+    keepers.push(createPlayer(rng, 'GK', `g${i}`, allocateName));
   }
 
   return { field, keepers };

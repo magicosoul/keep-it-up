@@ -1,7 +1,8 @@
 import { TEAM_CONFIG, FORMATIONS } from './config.js';
-import { CLUB_PREFIX, CLUB_SUFFIX, SURNAMES, GIVEN_NAMES, FOREIGN_NAMES } from './names.js';
+import { CLUB_PREFIX, CLUB_SUFFIX, CONFIRMED_NAMES, FOREIGN_NAMES } from './names.js';
 import { pick, range, intRange, poisson } from './rng.js';
 import { squadSummary, availableFor } from './squad.js';
+import { playerEffects, lineupEffects } from './skills.js';
 import { matchupModifiers, controlEdge, applyControlEdge, expectedGoals } from './tactics.js';
 
 export const AI_SCALE = {
@@ -78,9 +79,7 @@ function buildClubs(rng, clubCount, myClubName, takenNames = []) {
     const bias = FORMATIONS[formationKey].bias;
     const scorerName = () => {
       for (let attempt = 0; attempt < 30; attempt += 1) {
-        const candidate = rng() < 0.25
-          ? pick(rng, FOREIGN_NAMES)
-          : `${pick(rng, SURNAMES)} ${pick(rng, GIVEN_NAMES)}`;
+        const candidate = rng() < 0.25 ? pick(rng, FOREIGN_NAMES) : pick(rng, CONFIRMED_NAMES);
 
         if (!usedNames.has(candidate)) {
           usedNames.add(candidate);
@@ -88,7 +87,7 @@ function buildClubs(rng, clubCount, myClubName, takenNames = []) {
         }
       }
 
-      return `${pick(rng, SURNAMES)} ${pick(rng, GIVEN_NAMES)}`;
+      return pick(rng, CONFIRMED_NAMES);
     };
 
     clubs.push({
@@ -140,17 +139,40 @@ export class Season {
     };
   }
 
-  myRatings() {
+  myRatings(opponentClub) {
     const summary = squadSummary(this.squad, this.formationKey, this.lineup, this.captainId);
+    const effects = lineupEffects(summary.resolved);
+
+    // 特殊能力のうち、相手や時期で効き方が変わるもの
+    const phase = this.matchday < this.fixtures.length / 2 ? effects.earlySeason : effects.lateSeason;
+    const big = opponentClub && opponentClub.quality >= 0.65 ? effects.bigMatch : 0;
+    const multiplier = 1 + phase + big;
 
     return {
-      attack: clamp(summary.ratings.attack, 30, 99),
-      defense: clamp(summary.ratings.defense, 30, 99),
+      attack: clamp(summary.ratings.attack * multiplier, 30, 99),
+      defense: clamp(summary.ratings.defense * multiplier, 30, 99),
       control: clamp(summary.ratings.control, 30, 99),
       formationKey: this.formationKey,
       resolved: summary.resolved,
       power: summary.power,
+      effects,
     };
+  }
+
+  /** セットプレーとPKストッパーぶんの増減。 */
+  applySkillGoals(effects, scored, conceded) {
+    let goalsFor = scored;
+    let goalsAgainst = conceded;
+
+    if (this.rng() < Math.min(effects.setPiece, 0.4)) {
+      goalsFor += 1;
+    }
+
+    if (goalsAgainst > 0 && this.rng() < Math.min(effects.pkStop + effects.setPieceGuard, 0.4)) {
+      goalsAgainst -= 1;
+    }
+
+    return { goalsFor, goalsAgainst };
   }
 
   /**
@@ -189,14 +211,18 @@ export class Season {
       let awayRating;
       let myResolved = null;
 
+      let myEffects = null;
+
       if (homeClub.mine) {
-        const mineRatings = this.myRatings();
+        const mineRatings = this.myRatings(awayClub);
         myResolved = mineRatings.resolved;
+        myEffects = mineRatings.effects;
         homeRating = mineRatings;
         awayRating = this.aiRatings(awayClub);
       } else if (awayClub.mine) {
-        const mineRatings = this.myRatings();
+        const mineRatings = this.myRatings(homeClub);
         myResolved = mineRatings.resolved;
+        myEffects = mineRatings.effects;
         awayRating = mineRatings;
         homeRating = this.aiRatings(homeClub);
       } else {
@@ -205,20 +231,31 @@ export class Season {
       }
 
       const tactics = this.resolveTactics(homeRating, awayRating);
-      const homeGoals = poisson(this.rng, expectedGoals(tactics.home.attack, tactics.away.defense, 1.13));
-      const awayGoals = poisson(this.rng, expectedGoals(tactics.away.attack, tactics.home.defense, 0.93));
-
-      this.applyResult(homeIndex, awayIndex, homeGoals, awayGoals);
+      let homeGoals = poisson(this.rng, expectedGoals(tactics.home.attack, tactics.away.defense, 1.13));
+      let awayGoals = poisson(this.rng, expectedGoals(tactics.away.attack, tactics.home.defense, 0.93));
 
       if (!mine) {
+        this.applyResult(homeIndex, awayIndex, homeGoals, awayGoals);
         this.creditScorers(homeClub, homeGoals);
         this.creditScorers(awayClub, awayGoals);
         return;
       }
 
       const home = homeClub.mine;
-      const scored = home ? homeGoals : awayGoals;
-      const conceded = home ? awayGoals : homeGoals;
+      const adjusted = this.applySkillGoals(myEffects, home ? homeGoals : awayGoals, home ? awayGoals : homeGoals);
+
+      if (home) {
+        homeGoals = adjusted.goalsFor;
+        awayGoals = adjusted.goalsAgainst;
+      } else {
+        awayGoals = adjusted.goalsFor;
+        homeGoals = adjusted.goalsAgainst;
+      }
+
+      this.applyResult(homeIndex, awayIndex, homeGoals, awayGoals);
+
+      const scored = adjusted.goalsFor;
+      const conceded = adjusted.goalsAgainst;
       const opponent = home ? awayClub : homeClub;
       const scorers = this.applyPlayerOutcome(myResolved, scored, conceded);
 
@@ -317,8 +354,9 @@ export class Season {
     const scorers = [];
 
     resolved.forEach(({ slotPosition, player }) => {
+      const effects = playerEffects(player);
       player.apps += 1;
-      player.fatigue = Math.min(100, player.fatigue + TEAM_CONFIG.fatigue.perMatch + intRange(this.rng, -5, 6));
+      player.fatigue = Math.min(100, player.fatigue + TEAM_CONFIG.fatigue.perMatch * effects.fatigueMul + intRange(this.rng, -5, 6));
 
       if (conceded === 0 && (slotPosition === 'GK' || slotPosition === 'DF')) {
         player.cleanSheets += 1;
@@ -353,7 +391,7 @@ export class Season {
         return;
       }
 
-      if (starters.has(player.id) && this.rng() < TEAM_CONFIG.injury.chancePerMatch) {
+      if (starters.has(player.id) && this.rng() < TEAM_CONFIG.injury.chancePerMatch * playerEffects(player).injuryMul) {
         player.injuredFor = intRange(this.rng, TEAM_CONFIG.injury.minMatches, TEAM_CONFIG.injury.maxMatches);
         this.events.push({ round: this.matchday + 1, type: 'injury', name: player.name, value: player.injuredFor });
         return;
@@ -367,10 +405,15 @@ export class Season {
 
   driftForm(player) {
     const form = TEAM_CONFIG.form;
-    const next = (player.form ?? 1) + range(this.rng, -form.drift, form.drift);
-    player.form = clamp(next, form.min, form.max);
+    const effects = playerEffects(player);
+    const drift = form.drift * effects.formSwingMul;
+    const swing = (form.max - form.min) / 2 * effects.formSwingMul;
+    // 波が大きい選手は下振れのほうが深い。だから「ムラっ気」は損になる
+    const downSwing = swing * (1 + (effects.formSwingMul - 1) * 0.6);
+    const next = (player.form ?? 1) + range(this.rng, -drift, drift);
+    player.form = clamp(next, 1 - downSwing, 1 + swing);
 
-    if (this.rng() < form.breakoutChance && player.growth < (player.potential - player.ovr)) {
+    if (this.rng() < form.breakoutChance * effects.growthMul && player.growth < (player.potential - player.ovr)) {
       const gain = intRange(this.rng, 2, 5);
       player.growth += gain;
       this.events.push({ round: this.matchday + 1, type: 'breakout', name: player.name, value: gain });
@@ -392,13 +435,15 @@ export class Season {
         return;
       }
 
-      const stats = (kind === 'goal' ? player.stats.att : player.stats.tec) + (player.growth ?? 0);
+      const effects = playerEffects(player);
+      const stats = (kind === 'goal' ? player.stats.shoot : player.stats.pass) + (player.growth ?? 0);
       const positionWeight = kind === 'goal'
         ? { FW: 5, MF: 1.2, DF: 0.35, GK: 0.01 }[slotPosition]
         : { FW: 1.4, MF: 2.4, DF: 0.7, GK: 0.02 }[slotPosition];
+      const skillWeight = kind === 'goal' ? effects.goalWeight : effects.assistWeight;
       const quality = Math.pow(Math.max(stats, 20) / 60, 2.6);
 
-      entries.push({ player, weight: Math.max(0.01, quality * positionWeight) });
+      entries.push({ player, weight: Math.max(0.01, quality * positionWeight * skillWeight) });
     });
 
     const total = entries.reduce((sum, entry) => sum + entry.weight, 0);

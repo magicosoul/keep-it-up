@@ -1,11 +1,11 @@
 import { FORMATIONS, POSITION_LABEL } from '../config.js';
-import { render, on, escapeHtml, ovrClass, rosterRow, positionCounts } from '../ui.js';
-import { squadSummary, effectiveOvr, countByPosition, mismatchPenalty } from '../squad.js';
+import { render, on, escapeHtml, ovrClass, rosterRow, positionCounts, skillChips } from '../ui.js';
+import { squadSummary, effectiveOvr, assignmentScore, countByPosition, mismatchPenalty } from '../squad.js';
 
 function slotOptions(squad, selectedId, slotPosition) {
   return squad
     .slice()
-    .sort((a, b) => effectiveOvr(b, slotPosition) - effectiveOvr(a, slotPosition))
+    .sort((a, b) => assignmentScore(b, slotPosition) - assignmentScore(a, slotPosition))
     .map((player) => {
       const eff = effectiveOvr(player, slotPosition);
       const mark = player.position === slotPosition ? '' : '▲';
@@ -22,7 +22,7 @@ function slotCard(state, entry) {
   }
 
   const eff = effectiveOvr(player, entry.slotPosition);
-  const penalty = mismatchPenalty(player.position, entry.slotPosition);
+  const penalty = mismatchPenalty(player.position, entry.slotPosition, player);
 
   return `
     <div class="slot ${penalty > 0 ? 'is-mismatch' : ''}">
@@ -31,6 +31,7 @@ function slotCard(state, entry) {
         ${slotOptions(state.squad, entry.playerId, entry.slotPosition)}
       </select>
       <span class="slot-ovr ${ovrClass(eff)}">${eff}</span>
+      <span class="slot-skills">${skillChips(player, { limit: 2 })}</span>
       ${penalty > 0 ? `<span class="slot-warn">コンバート -${penalty}</span>` : ''}
     </div>
   `;
@@ -85,7 +86,7 @@ export function showSquad(ctx) {
             ${bench.map((player) => rosterRow(player)).join('') || '<li class="note">控えなし</li>'}
           </ul>
           <label class="field">
-            <span>キャプテン</span>
+            <span>キャプテン（そのまま出場するとチーム全体が少し上がる）</span>
             <select id="captain-select">
               ${state.squad.map((player) => `<option value="${player.id}" ${player.id === state.captainId ? 'selected' : ''}>${escapeHtml(player.name)} (${player.position})</option>`).join('')}
             </select>

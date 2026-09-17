@@ -295,9 +295,9 @@ select {
 
 .stat {
   display: grid;
-  grid-template-columns: 46px 1fr 34px;
+  grid-template-columns: 78px 22px 1fr 30px;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-size: 13px;
 }
 
@@ -367,13 +367,26 @@ select {
 
 .roster-row {
   display: grid;
-  grid-template-columns: 38px 1fr auto 42px;
+  grid-template-columns: 38px minmax(64px, 1fr) auto 42px;
   align-items: center;
   gap: 8px;
   padding: 5px 8px;
   background: rgba(255, 255, 255, 0.03);
   border-radius: 9px;
   font-size: 14px;
+}
+
+.roster-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roster-skills {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .roster-meta {
@@ -426,7 +439,7 @@ select {
 
 .slot {
   display: grid;
-  grid-template-columns: 36px 1fr auto;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   background: rgba(8, 14, 26, 0.72);
@@ -815,4 +828,111 @@ select {
 .formation-note {
   margin: 8px 0 0;
   color: #cbd5e1;
+}
+
+/* --- ランクと特殊能力 --- */
+
+.rank {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-weight: 900;
+  font-size: 13px;
+  color: #0b1220;
+}
+
+.rank-S { background: linear-gradient(135deg, #fde68a, #f59e0b); box-shadow: 0 0 10px rgba(245, 158, 11, 0.5); }
+.rank-A { background: #f87171; }
+.rank-B { background: #fb923c; }
+.rank-C { background: #fbbf24; }
+.rank-D { background: #4ade80; }
+.rank-E { background: #38bdf8; }
+.rank-F { background: #a5b4fc; }
+.rank-G { background: #94a3b8; }
+
+.rank-fill-S { background: linear-gradient(90deg, #f59e0b, #fde68a); }
+.rank-fill-A { background: linear-gradient(90deg, #ef4444, #f87171); }
+.rank-fill-B { background: linear-gradient(90deg, #ea580c, #fb923c); }
+.rank-fill-C { background: linear-gradient(90deg, #d97706, #fbbf24); }
+.rank-fill-D { background: linear-gradient(90deg, #16a34a, #4ade80); }
+.rank-fill-E { background: linear-gradient(90deg, #0284c7, #38bdf8); }
+.rank-fill-F { background: linear-gradient(90deg, #6366f1, #a5b4fc); }
+.rank-fill-G { background: linear-gradient(90deg, #475569, #94a3b8); }
+
+.skill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 12px;
+  min-height: 24px;
+}
+
+.skill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  border: 1px solid transparent;
+  cursor: help;
+}
+
+.skill-gold {
+  background: linear-gradient(135deg, #fde68a, #f59e0b);
+  color: #3b2506;
+  border-color: #fde68a;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.45);
+}
+
+.skill-blue {
+  background: rgba(56, 189, 248, 0.16);
+  color: #7dd3fc;
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+.skill-red {
+  background: rgba(248, 113, 113, 0.16);
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+.skill-more {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+}
+
+.skill-none {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.roster-skills .skill {
+  font-size: 10px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+.slot-skills {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.slot-skills .skill {
+  font-size: 10px;
+  padding: 1px 6px;
+}
+
+.cell-skills {
+  text-align: left !important;
+  white-space: normal !important;
+}
+
+.cell-skills .skill {
+  font-size: 10px;
+  padding: 1px 6px;
+  margin: 1px 2px 1px 0;
 }
