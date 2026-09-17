@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "check": "node scripts/check-names.mjs",
+    "check": "node scripts/check-names.mjs && node scripts/check-links.mjs",
     "build:artifact": "vite build --config vite.artifact.config.js && node scripts/build-artifact.mjs"
   },
   "dependencies": {},

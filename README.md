@@ -1,5 +1,20 @@
 # KEEP IT UP!
 
+ブラウザで遊べるサッカーゲーム2本。
+
+**公開先: https://magicosoul.github.io/keep-it-up/**
+
+| ページ | 中身 | 状態 |
+| --- | --- | --- |
+| `/` | 入口 | — |
+| `/team/` | サッカーチームメーカー | 遊べます |
+| `/juggling/` | リフティング（KEEP IT UP!） | Phase 1 プロトタイプ |
+
+main に push すると GitHub Actions が build して自動で公開します
+（`.github/workflows/deploy-pages.yml`）。
+
+---
+
 A simple soccer juggling game prototype.
 
 This repository is set up for Codex-driven development. The goal is not to make a huge game immediately. The goal is to build the core juggling feel first, then add tricks, scoring, assets, and polish step by step.
@@ -80,33 +95,44 @@ Do not try to finish the entire game in one task. Work in small steps:
 
 `npm run dev` のあと `/team/` を開いてください。詳しい仕様は `TEAM_SPEC.md`。
 
-名前データを触ったら `npm run check` で検査してください（姓と名が同じカテゴリの
-組み合わせになっていないか＝実在の人物そのものになっていないかを見ます）。
+`npm run build` のあと `npm run check` で2つ検査します。
+
+- 名前: 姓と名が同じカテゴリの組み合わせになっていないか（＝実在の人物そのものに
+  なっていないか）
+- リンク: ビルド結果にサイト内の絶対パスが残っていないか。GitHub Pages は
+  `/keep-it-up/` の下で配信するので、`href="/team/"` のような絶対パスは404になる
+
+`npm run build:artifact` は `/team/` を外部読み込みなしの1枚のHTMLに固めます。
 
 ## Project structure
 
 ```text
 keep-it-up/
-├─ index.html
+├─ index.html              入口ページ
 ├─ vite.config.js
+├─ vite.artifact.config.js
 ├─ TEAM_SPEC.md
-├─ scripts/
-│  └─ check-names.mjs
-├─ team/
-│  └─ index.html
-├─ package.json
-├─ README.md
-├─ CODEX.md
 ├─ GAME_SPEC.md
+├─ CODEX.md
+├─ .github/workflows/
+│  └─ deploy-pages.yml     main への push で GitHub Pages に公開
+├─ scripts/
+│  ├─ check-names.mjs
+│  ├─ check-links.mjs
+│  └─ build-artifact.mjs
+├─ juggling/
+│  └─ index.html           リフティングゲーム
+├─ team/
+│  └─ index.html           サッカーチームメーカー
 ├─ src/
-│  ├─ main.js
+│  ├─ main.js              リフティングの起動
 │  ├─ game.js
 │  ├─ input.js
 │  ├─ physics.js
 │  ├─ tricks.js
 │  ├─ config.js
 │  └─ team/
-│     ├─ main.js
+│     ├─ main.js           チームメーカーの画面遷移
 │     ├─ config.js
 │     ├─ rng.js
 │     ├─ names.js
@@ -124,6 +150,7 @@ keep-it-up/
 │        ├─ season.js
 │        └─ result.js
 └─ styles/
+   ├─ home.css
    ├─ style.css
    └─ team.css
 ```

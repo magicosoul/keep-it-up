@@ -4,31 +4,64 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>KEEP IT UP!</title>
+    <meta name="description" content="ブラウザで遊べるサッカーゲーム2本。ランダムドラフトでチームを組む「サッカーチームメーカー」と、リフティングを続けるアクション「KEEP IT UP!」。" />
+    <link rel="stylesheet" href="/styles/home.css" />
   </head>
   <body>
-    <div id="app">
-      <header class="topbar">
-        <div>
-          <h1>KEEP IT UP!</h1>
-          <p>Phase 1: foot juggling feel test</p>
-        </div>
-        <div class="hud">
-          <div>Score <strong id="score">0</strong></div>
-          <div>Combo <strong id="combo">0</strong></div>
-          <div>Status <strong id="status">Ready</strong></div>
-        </div>
+    <div class="wrap">
+      <header>
+        <p class="eyebrow">BROWSER SOCCER GAMES</p>
+        <h1>KEEP IT UP!</h1>
+        <p class="lead">
+          ブラウザだけで遊べるサッカーゲームを置いています。
+          インストールも登録もいりません。
+        </p>
       </header>
 
-      <canvas id="game" width="960" height="540" aria-label="KEEP IT UP game canvas"></canvas>
+      <main class="games">
+        <a class="game" href="./team/">
+          <div class="game-top">
+            <span class="badge badge-done">遊べます</span>
+          </div>
+          <h2>サッカーチームメーカー</h2>
+          <p>
+            ランダムに流れてくる選手を「取る」か「見送る」かだけで18人集めるゲーム。
+            集めたメンバーでフォーメーションを組み、38試合のシーズンを戦います。
+            見送りは9回まで。使い切ったら、あとは流れてきた選手を全員取るしかありません。
+          </p>
+          <ul class="facts">
+            <li><span>プレイ時間</span>1回 5〜15分</li>
+            <li><span>選手</span>6パラメータをS〜Gランクで表示。特殊能力29種</li>
+            <li><span>駆け引き</span>フォーメーション相性。相手の形を見て組み替える</li>
+            <li><span>操作</span>クリック / タップ（キーボードも可）</li>
+          </ul>
+          <span class="play">遊ぶ →</span>
+        </a>
 
-      <section class="controls-help">
-        <p>Move: Arrow Left / Arrow Right</p>
-        <p>Kick: A = left foot, D = right foot</p>
-        <p>Start / Restart: Space</p>
-        <p><a href="./team/">サッカーチームメーカーで遊ぶ →</a></p>
-      </section>
+        <a class="game game-wip" href="./juggling/">
+          <div class="game-top">
+            <span class="badge badge-wip">プロトタイプ</span>
+          </div>
+          <h2>KEEP IT UP!<br />（リフティング）</h2>
+          <p>
+            ボールを落とさないように蹴り続けるアクション。
+            左右に動いてボールの下に入り、タイミングを合わせて足を出します。
+            まだ Phase 1 で、足だけ・スコアのみの状態です。
+            胸とヘディング、トリック、タイムアタックはこれから。
+          </p>
+          <ul class="facts">
+            <li><span>プレイ時間</span>落とすまで</li>
+            <li><span>操作</span>← → で移動、A / D で左足・右足、Space で開始</li>
+            <li><span>状態</span>作りかけ。当たり判定の感触を見ている段階</li>
+          </ul>
+          <span class="play">遊ぶ →</span>
+        </a>
+      </main>
+
+      <footer>
+        ソースコードは <a href="https://github.com/magicosoul/keep-it-up">github.com/magicosoul/keep-it-up</a> にあります。<br />
+        選手名は実在の人物ではありません。姓と名を別々の出典から組み合わせて生成しています。
+      </footer>
     </div>
-
-    <script type="module" src="/src/main.js"></script>
   </body>
 </html>
