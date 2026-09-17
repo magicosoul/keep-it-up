@@ -13,6 +13,22 @@
 main に push すると GitHub Actions が build して自動で公開します
 （`.github/workflows/deploy-pages.yml`）。
 
+### 初回だけ必要な設定
+
+リポジトリの **Settings → Pages → Build and deployment → Source** を
+**GitHub Actions** にしてください。1回だけです。
+
+`GITHUB_TOKEN` には Pages サイトを新規作成する権限がないため、
+ワークフロー側から自動で有効化することはできません
+（`configure-pages` の `enablement: true` は
+`Resource not accessible by integration` で失敗します）。
+
+### 別のドメインに移すとき
+
+`index.html` / `team/index.html` / `juggling/index.html` の
+`canonical` / `og:url` / `og:image` と、`public/robots.txt`、`public/sitemap.xml`
+に公開URLが入っています。移行時はここを直してください。
+
 ---
 
 A simple soccer juggling game prototype.

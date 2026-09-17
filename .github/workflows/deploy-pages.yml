@@ -32,10 +32,10 @@ jobs:
       # リンク検査はビルド結果を見るので build のあと
       - run: npm run check
 
+      # 初回だけ、リポジトリの Settings > Pages > Source を "GitHub Actions" に
+      # しておく必要がある。GITHUB_TOKEN には Pages サイトを新規作成する権限が
+      # ないので、enablement: true を付けてもここで失敗する。
       - uses: actions/configure-pages@v5
-        with:
-          # Pages がまだ有効になっていなければ、ここで有効にする
-          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
