@@ -1,6 +1,7 @@
 import { TEAM_CONFIG, POSITION_LABEL, FORMATIONS } from '../config.js';
-import { render, on, escapeHtml, ovrClass, skillChips, rankBadge } from '../ui.js';
-import { squadSummary } from '../squad.js';
+import { render, on, escapeHtml, ovrClass, skillChips, rankBadge, pitchNames } from '../ui.js';
+import { squadSummary, effectiveOvr } from '../squad.js';
+import { rankOf } from '../players.js';
 import { matchupPreview, matchupLabel } from '../tactics.js';
 
 const EVENT_LABEL = {
@@ -98,7 +99,82 @@ function matchupMatrix(currentKey, opponentKey) {
   `;
 }
 
-function nextMatchPanel(ctx, fixture) {
+const LINES = ['FW', 'MF', 'DF', 'GK'];
+
+function groupByLine(entries, key) {
+  const lines = { GK: [], DF: [], MF: [], FW: [] };
+  entries.forEach((entry) => lines[key(entry)].push(entry));
+  return lines;
+}
+
+/**
+ * 自分と相手を向かい合わせに置いたピッチ。
+ * 中盤の枚数差や最終ラインの枚数が、数字を読まなくても見て分かるようにする。
+ * 相手は選手データを持たないので、形だけを点で置く。
+ */
+function versusPitch(resolved, myKey, oppKey, opponentName) {
+  const mine = groupByLine(resolved, (entry) => entry.slotPosition);
+  const names = pitchNames(resolved.map(({ player }) => player));
+  const theirs = groupByLine(
+    FORMATIONS[oppKey].slots.map((slot) => ({ slot })),
+    (entry) => entry.slot,
+  );
+
+  const oppLine = (position) => `
+    <div class="vs-line is-opp">
+      ${theirs[position].map(() => `
+        <span class="vs-slot">
+          <span class="vs-token vs-opp pos-${position}">${POSITION_LABEL[position]}</span>
+        </span>
+      `).join('')}
+    </div>
+  `;
+
+  const myLine = (position) => `
+    <div class="vs-line">
+      ${mine[position].map(({ player }) => {
+        const eff = effectiveOvr(player, position);
+        return `
+          <span class="vs-slot">
+            <span class="vs-token pos-${position}">
+              ${POSITION_LABEL[position]}
+              <span class="vs-rating rank-${rankOf(eff)}">${eff}</span>
+            </span>
+            <span class="vs-name" title="${escapeHtml(player.name)}">${escapeHtml(names.get(player.id) ?? player.name)}</span>
+          </span>
+        `;
+      }).join('')}
+    </div>
+  `;
+
+  return `
+    <div class="vs-wrap">
+      <div class="vs-side vs-side-opp">
+        <span class="vs-tag">${escapeHtml(opponentName)}</span>
+        <span class="vs-shape">${escapeHtml(oppKey)}</span>
+      </div>
+
+      <div class="vs-pitch">
+        <div class="pitch-marks" aria-hidden="true">
+          <span class="mark-box mark-box-top"></span>
+          <span class="mark-half"></span>
+          <span class="mark-circle"></span>
+          <span class="mark-spot"></span>
+          <span class="mark-box mark-box-bottom"></span>
+        </div>
+        ${['GK', 'DF', 'MF', 'FW'].map(oppLine).join('')}
+        ${LINES.map(myLine).join('')}
+      </div>
+
+      <div class="vs-side vs-side-mine">
+        <span class="vs-tag">自チーム</span>
+        <span class="vs-shape">${escapeHtml(myKey)}</span>
+      </div>
+    </div>
+  `;
+}
+
+function nextMatchPanel(ctx, fixture, resolved) {
   if (!fixture) {
     return '';
   }
@@ -145,6 +221,8 @@ function nextMatchPanel(ctx, fixture) {
         }).join('')}
       </div>
 
+      ${versusPitch(resolved, state.formationKey, oppKey, fixture.opponent.name)}
+
       ${preview.terms.every((term) => term.attack === 0 && term.control === 0)
         ? '<p class="note">同じフォーメーションどうしなので、噛み合わせの差はありません。選手の質の勝負になります。</p>'
         : `<ul class="terms">${preview.terms.map(termRow).join('')}</ul>`}
@@ -182,7 +260,7 @@ export function showSeason(ctx) {
         </div>
       </header>
 
-      ${nextMatchPanel(ctx, fixture)}
+      ${nextMatchPanel(ctx, fixture, summary.resolved)}
 
       <div class="button-row season-actions">
         <button id="play-one" class="btn btn-primary" ${season.finished ? 'disabled' : ''}>1試合進める</button>

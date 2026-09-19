@@ -1,5 +1,5 @@
 import { FORMATIONS, POSITION_LABEL } from '../config.js';
-import { render, on, escapeHtml, rosterRow, positionCounts, skillDots, shortName } from '../ui.js';
+import { render, on, escapeHtml, rosterRow, positionCounts, skillDots, pitchNames } from '../ui.js';
 import { rankOf } from '../players.js';
 import { squadSummary, effectiveOvr, assignmentScore, countByPosition, mismatchPenalty } from '../squad.js';
 
@@ -15,7 +15,7 @@ function slotOptions(squad, selectedId, slotPosition) {
     .join('');
 }
 
-function slotCard(state, entry) {
+function slotCard(state, entry, names) {
   const player = state.squad.find((item) => item.id === entry.playerId);
 
   if (!player) {
@@ -36,7 +36,7 @@ function slotCard(state, entry) {
           ${slotOptions(state.squad, entry.playerId, entry.slotPosition)}
         </select>
       </div>
-      <p class="fm-name" title="${escapeHtml(player.name)}">${escapeHtml(shortName(player.name))}</p>
+      <p class="fm-name" title="${escapeHtml(player.name)}">${escapeHtml(names.get(player.id) ?? player.name)}</p>
       ${skillDots(player)}
     </div>
   `;
@@ -67,6 +67,10 @@ export function showSquad(ctx) {
     lines[entry.slotPosition].push(entry);
   });
 
+  const names = pitchNames(lineup
+    .map((entry) => state.squad.find((player) => player.id === entry.playerId))
+    .filter(Boolean));
+
   render(`
     <section class="screen screen-squad">
       <header class="draft-head">
@@ -95,7 +99,7 @@ export function showSquad(ctx) {
           <div class="pitch">
             ${PITCH_MARKS}
             ${['FW', 'MF', 'DF', 'GK'].map((line) => `
-              <div class="pitch-line">${lines[line].map((entry) => slotCard(state, entry)).join('')}</div>
+              <div class="pitch-line">${lines[line].map((entry) => slotCard(state, entry, names)).join('')}</div>
             `).join('')}
           </div>
           <p class="note pitch-hint">選手をタップすると入れ替えられます。赤い数字は本職外で使ったときの減点、下の点は特殊能力（<span class="dot dot-gold"></span>金 <span class="dot dot-blue"></span>青 <span class="dot dot-red"></span>赤）。</p>

@@ -33,6 +33,8 @@
 
 .screen {
   display: grid;
+  /* minmax(0, 1fr) にしないと、中身の最小幅でトラックが画面より広がる */
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
 }
 
@@ -200,6 +202,10 @@ select {
   align-items: flex-end;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+.draft-head > * {
+  min-width: 0;
 }
 
 .draft-counters {
@@ -644,6 +650,7 @@ select {
 
 .table-scroll {
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .table-scroll.is-tall {
@@ -653,9 +660,16 @@ select {
 
 .data-table {
   width: 100%;
+  /* 狭い画面では潰さずに、.table-scroll の中で横スクロールさせる */
+  min-width: 560px;
   border-collapse: collapse;
   font-size: 13px;
   white-space: nowrap;
+}
+
+/* 順位表は列が少ないので、もう少し詰めてよい */
+.table-scroll.is-tall .data-table {
+  min-width: 430px;
 }
 
 .data-table th {
@@ -678,7 +692,6 @@ select {
 .data-table th:nth-child(2),
 .data-table td.club {
   text-align: left;
-  white-space: normal;
 }
 
 .data-table tr.is-mine {
@@ -1115,10 +1128,152 @@ select {
 .cell-skills {
   text-align: left !important;
   white-space: normal !important;
+  min-width: 158px;
 }
 
 .cell-skills .skill {
   font-size: 10px;
   padding: 1px 6px;
   margin: 1px 2px 1px 0;
+}
+
+/* --- 次節プレビューの対面ピッチ --- */
+
+.vs-wrap {
+  margin: 12px 0 4px;
+}
+
+.vs-side {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 2px;
+}
+
+.vs-side-mine {
+  justify-content: flex-end;
+}
+
+.vs-tag {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 1px;
+}
+
+.vs-shape {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.vs-pitch {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #1e5c3f;
+  border-radius: 14px;
+  padding: 12px 8px;
+  min-height: 500px;
+  display: grid;
+  grid-template-rows: repeat(8, 1fr);
+  align-items: center;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.03) 0 12.5%,
+      rgba(0, 0, 0, 0.05) 12.5% 25%
+    ),
+    linear-gradient(180deg, #123c28 0%, #17482f 50%, #0e3123 100%);
+}
+
+.vs-line {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-evenly;
+  gap: 2px;
+  /* 自陣側は下寄せ、相手側は上寄せ。中央で前線どうしが重ならない */
+  align-items: flex-end;
+}
+
+.vs-line.is-opp {
+  align-items: flex-start;
+}
+
+.vs-slot {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  width: 58px;
+  min-width: 0;
+}
+
+.vs-token {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 900;
+  color: #08111f;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* 相手は選手データがないので、形だけを控えめに置く */
+.vs-token.vs-opp {
+  opacity: 0.45;
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: none;
+}
+
+.vs-rating {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+  min-width: 21px;
+  padding: 0 3px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 900;
+  text-align: center;
+  color: #0b1220;
+  border: 2px solid #123b29;
+}
+
+.vs-name {
+  max-width: 100%;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+}
+
+@media (max-width: 560px) {
+  .vs-pitch {
+    min-height: 430px;
+    padding: 10px 2px;
+  }
+
+  .vs-slot {
+    width: 50px;
+  }
+
+  .vs-token {
+    width: 28px;
+    height: 28px;
+    font-size: 10px;
+  }
+
+  .vs-rating {
+    right: -5px;
+    min-width: 19px;
+    font-size: 9px;
+  }
 }

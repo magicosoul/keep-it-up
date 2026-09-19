@@ -99,6 +99,38 @@ export function shortName(name) {
   return name;
 }
 
+/** 同姓が並んだときだけ、区別がつくところまで名前を足す。 */
+function disambiguated(name) {
+  if (name.includes(' ')) {
+    const [surname, given] = name.split(' ');
+    return `${surname} ${given.slice(0, 1)}`;
+  }
+
+  return name;
+}
+
+/**
+ * ピッチに出す表示名をまとめて決める。
+ * 姓が被っていない選手はそのまま姓だけ、被った選手だけ名前を足す。
+ */
+export function pitchNames(players) {
+  const counts = new Map();
+
+  players.forEach((player) => {
+    const short = shortName(player.name);
+    counts.set(short, (counts.get(short) ?? 0) + 1);
+  });
+
+  const names = new Map();
+
+  players.forEach((player) => {
+    const short = shortName(player.name);
+    names.set(player.id, counts.get(short) > 1 ? disambiguated(player.name) : short);
+  });
+
+  return names;
+}
+
 export function playerCard(player, { big = false } = {}) {
   const order = STAT_ORDER[player.position];
   const labels = STAT_LABELS[player.position];
